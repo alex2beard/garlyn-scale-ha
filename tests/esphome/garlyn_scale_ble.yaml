@@ -1,0 +1,38 @@
+esphome:
+  name: garlyn-transport-ci
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+wifi:
+  ssid: synthetic-test-network
+  password: synthetic-test-password
+
+esp32_ble_tracker:
+
+ble_client:
+  - mac_address: AA:BB:CC:DD:EE:FF
+    id: garlyn_ble
+    auto_connect: true
+
+time:
+  - platform: sntp
+    id: test_time
+    timezone: UTC
+
+external_components:
+  - source:
+      type: local
+      path: ../../components
+    components:
+      - garlyn_scale_ble
+
+garlyn_scale_ble:
+  id: garlyn_decoder
+  ble_client_id: garlyn_ble
+  time_id: test_time
+  scale_id: synthetic_scale_1

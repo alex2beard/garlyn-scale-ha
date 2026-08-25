@@ -22,3 +22,24 @@ jobs:
           -o /tmp/test_garlyn_protocol
       - name: Run protocol regression test
         run: /tmp/test_garlyn_protocol
+
+  compile-esphome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache PlatformIO toolchains
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/platformio
+            ~/.platformio
+          key: esphome-2026.5.3-esp32dev-${{ runner.os }}
+      - name: Install ESPHome
+        run: python -m pip install esphome==2026.5.3
+      - name: Compile synthetic ESP32 firmware
+        run: esphome compile tests/esphome/garlyn_scale_ble.yaml

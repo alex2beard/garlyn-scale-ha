@@ -117,7 +117,7 @@ void GarlynScaleBle::process_frame_(
     ESP_LOGW(TAG, "Measurement decoded, but no clock is configured");
     return;
   }
-  const ESPTime measured_time = this->time_->utcnow();
+  ESPTime measured_time = this->time_->utcnow();
   if (!measured_time.is_valid()) {
     this->status_set_warning();
     ESP_LOGW(TAG, "Measurement decoded, but time is not synchronized yet");
