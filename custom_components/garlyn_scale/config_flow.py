@@ -16,7 +16,6 @@ from homeassistant.config_entries import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
-    DateSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
@@ -24,6 +23,9 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
 )
 
 from .algorithm import ReferenceStandard, Sex
@@ -82,7 +84,7 @@ def _profile_form_schema(profile: UserProfile | None = None) -> vol.Schema:
             vol.Required(
                 CONF_DATE_OF_BIRTH,
                 default=defaults.get(CONF_DATE_OF_BIRTH, vol.UNDEFINED),
-            ): DateSelector(),
+            ): TextSelector(TextSelectorConfig(type=TextSelectorType.DATE)),
             vol.Required(
                 CONF_HEIGHT_CM,
                 default=defaults.get(CONF_HEIGHT_CM, vol.UNDEFINED),

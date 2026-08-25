@@ -72,7 +72,6 @@ def config_flow_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
 
     helpers = ModuleType("homeassistant.helpers")
     selector = ModuleType("homeassistant.helpers.selector")
-    selector.DateSelector = _Selector  # type: ignore[attr-defined]
     selector.NumberSelector = _Selector  # type: ignore[attr-defined]
     selector.NumberSelectorConfig = _SelectorConfig  # type: ignore[attr-defined]
     selector.NumberSelectorMode = SimpleNamespace(BOX="box")  # type: ignore[attr-defined]
@@ -80,6 +79,9 @@ def config_flow_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     selector.SelectSelector = _Selector  # type: ignore[attr-defined]
     selector.SelectSelectorConfig = _SelectorConfig  # type: ignore[attr-defined]
     selector.SelectSelectorMode = SimpleNamespace(DROPDOWN="dropdown")  # type: ignore[attr-defined]
+    selector.TextSelector = _Selector  # type: ignore[attr-defined]
+    selector.TextSelectorConfig = _SelectorConfig  # type: ignore[attr-defined]
+    selector.TextSelectorType = SimpleNamespace(DATE="date")  # type: ignore[attr-defined]
     helpers.selector = selector  # type: ignore[attr-defined]
 
     modules = {
@@ -148,6 +150,18 @@ def test_empty_options_menu_and_add_profile(config_flow_module: ModuleType) -> N
     profiles = deserialize_profiles(result["data"])
     assert profiles["4242"].name == "Synthetic profile"
     assert profiles["4242"].athlete_mode is False
+
+
+def test_profile_form_uses_native_date_input(config_flow_module: ModuleType) -> None:
+    schema = config_flow_module._profile_form_schema()  # type: ignore[attr-defined]
+    date_selector = next(
+        validator
+        for field, validator in schema.schema.items()
+        if field.schema == "date_of_birth"
+    )
+
+    assert isinstance(date_selector, _Selector)
+    assert date_selector.config == {"type": "date"}
 
 
 def test_duplicate_pin_is_rejected(config_flow_module: ModuleType) -> None:
