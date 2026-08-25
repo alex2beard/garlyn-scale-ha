@@ -55,7 +55,7 @@ external_components:
   - source:
       type: git
       url: https://github.com/alex2beard/garlyn-scale-ha
-      ref: main
+      ref: v0.5.0
     components:
       - garlyn_scale_ble
 
@@ -82,6 +82,10 @@ garlyn_scale_ble:
     http://homeassistant.local:8123/api/webhook/COPY_FROM_HA_CONNECTION_INFORMATION
   retry_interval: 60s
 ```
+
+Pin `ref` to an exact release tag. This keeps a working ESPHome build stable
+when development continues on `main`; update the tag intentionally when moving
+to a newer release.
 
 `webhook_url` must contain the complete local URL. Copy its path from
 **Configure -> Connection information** in Home Assistant and prepend the

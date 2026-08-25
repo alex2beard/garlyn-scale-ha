@@ -1,0 +1,93 @@
+name: Publish release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - custom_components/garlyn_scale/manifest.json
+      - .github/workflows/release.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version and tested commit
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(jq -r '.version' custom_components/garlyn_scale/manifest.json)"
+          if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid integration version: ${version}" >&2
+            exit 1
+          fi
+
+          tag="v${version}"
+          target_sha="$(git log -1 --format=%H -- custom_components/garlyn_scale/manifest.json)"
+          target_version="$(
+            git show "${target_sha}:custom_components/garlyn_scale/manifest.json" |
+              jq -r '.version'
+          )"
+
+          if [[ "${target_version}" != "${version}" ]]; then
+            echo "Version ${version} does not match target ${target_version}" >&2
+            exit 1
+          fi
+
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+          echo "target_sha=${target_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TARGET_SHA: ${{ steps.release.outputs.target_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists; nothing to do."
+            exit 0
+          fi
+
+          notes_file=".github/release-notes/${TAG}.md"
+          release_args=(
+            release create "${TAG}"
+            --repo "${GITHUB_REPOSITORY}"
+            --title "${TAG}"
+          )
+
+          if git rev-parse --verify --quiet "refs/tags/${TAG}^{commit}" >/dev/null; then
+            existing_sha="$(git rev-list -n 1 "${TAG}")"
+            if [[ "${existing_sha}" != "${TARGET_SHA}" ]]; then
+              echo "Tag ${TAG} points to ${existing_sha}, expected ${TARGET_SHA}" >&2
+              exit 1
+            fi
+            release_args+=(--verify-tag)
+          else
+            release_args+=(--target "${TARGET_SHA}")
+          fi
+
+          if [[ -f "${notes_file}" ]]; then
+            release_args+=(--notes-file "${notes_file}")
+          else
+            release_args+=(--generate-notes)
+          fi
+
+          gh "${release_args[@]}"

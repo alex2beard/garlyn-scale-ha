@@ -1,6 +1,6 @@
 # GARLYN Scale for Home Assistant
 
-Experimental Home Assistant custom integration for GARLYN Bodyscan Master scales.
+Unofficial Home Assistant custom integration for GARLYN Bodyscan Master scales.
 
 The intended data path is:
 
@@ -39,8 +39,8 @@ The repository now contains an executable profile-aware measurement pipeline:
   measurements, decodes all ten BIA values, persists a bounded delivery queue,
   and posts transport-v1 JSON to the Home Assistant webhook.
 
-The direct ESPHome-to-Home Assistant path is implemented but remains
-experimental while real-device delivery and restart recovery are field-tested.
+The direct ESPHome-to-Home Assistant path has been field-tested with a physical
+scale, including webhook retry and delivery-queue recovery after an ESP restart.
 The SparkyFitness sender is not implemented. Calculated fields beyond the eight
 verified outputs remain disabled until their semantics are independently
 confirmed.
@@ -51,8 +51,8 @@ No `DataUpdateCoordinator` is used: this is a push integration.
 
 ### HACS custom repository
 
-This integration is currently an experimental custom repository, not a HACS
-default repository. After the sanitized repository is public:
+This integration is distributed through GitHub Releases as a HACS custom
+repository. It is not currently included in the HACS default repository list:
 
 1. Open HACS, select **Integrations**, then open the three-dot menu.
 2. Select **Custom repositories**.
@@ -68,6 +68,17 @@ measurement transport.
 HACS cannot add a private GitHub repository. The integration is also installable
 manually by copying `custom_components/garlyn_scale` into the matching directory
 under the Home Assistant configuration folder and restarting Home Assistant.
+
+### Release policy
+
+Stable, field-tested versions are published as GitHub Releases named
+`vX.Y.Z`. HACS users should install the latest release. The `main` branch is the
+development channel and may contain changes that have not completed field
+testing.
+
+ESPHome configurations should pin the external component to the same exact
+release tag, for example `ref: v0.5.0`, and update that reference intentionally
+when moving to a newer release.
 
 ## Confirmed measurement model
 
@@ -268,5 +279,5 @@ python -m pytest
 
 This project is available under the [MIT License](LICENSE).
 
-The next milestone is real-scale validation of webhook delivery and restart
-recovery, followed by the optional SparkyFitness sender.
+The next transport milestone is non-blocking ESPHome HTTP delivery, followed by
+the optional SparkyFitness sender.
