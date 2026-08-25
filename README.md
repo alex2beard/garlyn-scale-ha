@@ -34,12 +34,15 @@ The repository now contains an executable profile-aware measurement pipeline:
   configured profile;
 - stable profile/entity identity across profile renames and PIN changes, with
   automatic entity cleanup when a profile is deleted;
-- a privacy-safe synthetic regression fixture and unit tests.
+- a privacy-safe synthetic regression fixture and unit tests;
+- an ESPHome external component that reassembles and validates fragmented FFF3
+  measurements, decodes all ten BIA values, and logs transport-v1 JSON.
 
-It is **not ready for normal end-to-end Home Assistant use yet**. The
-SparkyFitness sender and the ESPHome/BLE transport are not implemented.
-Calculated fields beyond the eight verified outputs remain disabled until their
-semantics are independently confirmed.
+It is **not ready for normal end-to-end Home Assistant use yet**. The ESPHome
+decoder is currently log-only; HTTP delivery, its persistent retry queue, and
+the SparkyFitness sender are not implemented. Calculated fields beyond the
+eight verified outputs remain disabled until their semantics are independently
+confirmed.
 
 No `DataUpdateCoordinator` is used: this is a push integration.
 
@@ -220,6 +223,19 @@ sensor values are present immediately and a retry of a previously accepted
 `measurement_id` remains a duplicate after Home Assistant restarts. Rejected
 measurements are never added to the cache or storage.
 
+## ESPHome BLE decoder
+
+The repository includes the `garlyn_scale_ble` ESPHome external component. It
+owns the `FFF3` indication subscription, reassembles the usual fragmented
+68-byte result, verifies its checksum and BCD profile PIN, decodes weight and
+all ten impedances, and emits the exact JSON shape documented above to the ESP
+log. Raw frames are not logged.
+
+This milestone is intentionally log-only. See
+[`docs/esphome-transport.md`](docs/esphome-transport.md) for the confirmed frame
+layout, privacy-safe test vector, and ESPHome configuration. HTTP delivery and
+restart-safe retry storage will be added only after a real-scale decoder test.
+
 ## Synthetic public regression vector
 
 `tests/fixtures/synthetic_reference.json` contains a deliberately synthetic
@@ -250,5 +266,5 @@ python -m pytest
 
 This project is available under the [MIT License](LICENSE).
 
-The next milestone is the ESPHome/BLE transport that produces the version-1
-measurement payload and delivers it reliably to the local webhook.
+The next milestone is a real-scale validation of the log-only ESPHome decoder,
+followed by reliable delivery of the same payload to the local webhook.

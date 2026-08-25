@@ -1,0 +1,24 @@
+name: ESP transport tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Compile protocol regression test
+        run: >-
+          g++ -std=c++17 -Wall -Wextra -Werror -pedantic -I.
+          components/garlyn_scale_ble/garlyn_protocol.cpp
+          tests_cpp/test_garlyn_protocol.cpp
+          -o /tmp/test_garlyn_protocol
+      - name: Run protocol regression test
+        run: /tmp/test_garlyn_protocol
