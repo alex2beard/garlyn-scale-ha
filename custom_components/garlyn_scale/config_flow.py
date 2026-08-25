@@ -68,7 +68,7 @@ def _profile_form_schema(profile: UserProfile | None = None) -> vol.Schema:
             vol.Required(
                 CONF_PROFILE_PIN,
                 default=defaults.get(CONF_PROFILE_PIN, vol.UNDEFINED),
-            ): vol.All(str, vol.Match(r"^\d{4}$")),
+            ): vol.All(str, vol.Length(min=4, max=4)),
             vol.Required(
                 CONF_SEX,
                 default=defaults.get(CONF_SEX, vol.UNDEFINED),

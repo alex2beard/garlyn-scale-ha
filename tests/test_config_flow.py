@@ -163,6 +163,20 @@ def test_duplicate_pin_is_rejected(config_flow_module: ModuleType) -> None:
     assert duplicate["errors"] == {"profile_pin": "pin_already_configured"}
 
 
+@pytest.mark.parametrize("profile_pin", ["123", "12345", "12ab"])
+def test_invalid_pin_is_rejected(
+    config_flow_module: ModuleType, profile_pin: str
+) -> None:
+    flow = _flow(config_flow_module, {})
+
+    result = asyncio.run(  # type: ignore[attr-defined]
+        flow.async_step_add_profile(_profile_input(profile_pin=profile_pin))
+    )
+
+    assert result["type"] == "form"
+    assert result["errors"] == {"base": "invalid_profile"}
+
+
 def test_edit_can_change_pin_and_delete_requires_confirmation(
     config_flow_module: ModuleType,
 ) -> None:
