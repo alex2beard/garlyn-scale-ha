@@ -57,6 +57,10 @@ default repository. After the sanitized repository is public:
 4. Download **GARLYN Scale**, restart Home Assistant, then add the integration
    from **Settings -> Devices & services**.
 
+After setup, open **Configure -> Connection information** on the integration
+entry to view the persistent scale ID and local webhook path used by the
+measurement transport.
+
 HACS cannot add a private GitHub repository. The integration is also installable
 manually by copying `custom_components/garlyn_scale` into the matching directory
 under the Home Assistant configuration folder and restarting Home Assistant.

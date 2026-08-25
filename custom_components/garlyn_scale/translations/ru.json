@@ -27,12 +27,20 @@
     },
     "step": {
       "init": {
-        "title": "Управление профилями",
+        "title": "Настройка весов GARLYN",
         "description": "Настроено профилей: {profile_count}",
         "menu_options": {
+          "connection_info": "Сведения о подключении",
           "add_profile": "Добавить профиль",
           "edit_profile": "Изменить профиль",
           "delete_profile": "Удалить профиль"
+        }
+      },
+      "connection_info": {
+        "title": "Сведения о подключении",
+        "description": "ID весов: `{scale_id}`\n\nЛокальный путь webhook: `{webhook_path}`\n\nИспользуйте эти значения при настройке локального транспорта измерений. Webhook принимает POST-запросы только из локальной сети.",
+        "menu_options": {
+          "init": "Вернуться к настройкам"
         }
       },
       "add_profile": {

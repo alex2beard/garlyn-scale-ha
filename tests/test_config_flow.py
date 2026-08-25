@@ -10,7 +10,11 @@ from typing import Any
 
 import pytest
 
-from custom_components.garlyn_scale.const import CONF_PROFILES
+from custom_components.garlyn_scale.const import (
+    CONF_PROFILES,
+    CONF_SCALE_ID,
+    CONF_WEBHOOK_ID,
+)
 from custom_components.garlyn_scale.models import deserialize_profiles
 
 
@@ -111,7 +115,10 @@ def _profile_input(*, profile_pin: str = "4242") -> dict[str, object]:
 
 def _flow(module: ModuleType, options: dict[str, object]) -> object:
     flow = module.GarlynScaleOptionsFlow()  # type: ignore[attr-defined]
-    flow.config_entry = SimpleNamespace(options=options)
+    flow.config_entry = SimpleNamespace(
+        data={CONF_SCALE_ID: "scale-id", CONF_WEBHOOK_ID: "webhook-id"},
+        options=options,
+    )
     return flow
 
 
@@ -120,8 +127,19 @@ def test_empty_options_menu_and_add_profile(config_flow_module: ModuleType) -> N
 
     menu = asyncio.run(flow.async_step_init())  # type: ignore[attr-defined]
     assert menu["type"] == "menu"
-    assert menu["menu_options"] == ["add_profile"]
+    assert menu["menu_options"] == ["connection_info", "add_profile"]
     assert menu["description_placeholders"] == {"profile_count": "0"}
+
+    connection_info = asyncio.run(  # type: ignore[attr-defined]
+        flow.async_step_connection_info()
+    )
+    assert connection_info["type"] == "menu"
+    assert connection_info["step_id"] == "connection_info"
+    assert connection_info["menu_options"] == ["init"]
+    assert connection_info["description_placeholders"] == {
+        "scale_id": "scale-id",
+        "webhook_path": "/api/webhook/webhook-id",
+    }
 
     result = asyncio.run(  # type: ignore[attr-defined]
         flow.async_step_add_profile(_profile_input())

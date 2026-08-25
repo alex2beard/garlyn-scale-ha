@@ -240,13 +240,29 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
         """Show profile-management actions."""
         del user_input
         profiles = self._profiles()
-        menu_options = ["add_profile"]
+        menu_options = ["connection_info", "add_profile"]
         if profiles:
             menu_options.extend(("edit_profile", "delete_profile"))
         return self.async_show_menu(
             step_id="init",
             menu_options=menu_options,
             description_placeholders={"profile_count": str(len(profiles))},
+        )
+
+    async def async_step_connection_info(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Show persistent read-only identifiers used by the local transport."""
+        del user_input
+        return self.async_show_menu(
+            step_id="connection_info",
+            menu_options=["init"],
+            description_placeholders={
+                "scale_id": self.config_entry.data[CONF_SCALE_ID],
+                "webhook_path": webhook.async_generate_path(
+                    self.config_entry.data[CONF_WEBHOOK_ID]
+                ),
+            },
         )
 
     async def async_step_add_profile(

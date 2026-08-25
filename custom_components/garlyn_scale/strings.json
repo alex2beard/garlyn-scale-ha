@@ -27,12 +27,20 @@
     },
     "step": {
       "init": {
-        "title": "Manage profiles",
+        "title": "Configure GARLYN Scale",
         "description": "Configured profiles: {profile_count}",
         "menu_options": {
+          "connection_info": "Connection information",
           "add_profile": "Add profile",
           "edit_profile": "Edit profile",
           "delete_profile": "Delete profile"
+        }
+      },
+      "connection_info": {
+        "title": "Connection information",
+        "description": "Scale ID: `{scale_id}`\n\nLocal webhook path: `{webhook_path}`\n\nUse these values when configuring the local measurement transport. The webhook accepts POST requests from the local network only.",
+        "menu_options": {
+          "init": "Back to settings"
         }
       },
       "add_profile": {
