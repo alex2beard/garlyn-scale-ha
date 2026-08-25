@@ -1,4 +1,5 @@
 #include "components/garlyn_scale_ble/garlyn_protocol.h"
+#include "components/garlyn_scale_ble/garlyn_delivery.h"
 
 #include <array>
 #include <cassert>
@@ -104,6 +105,81 @@ void test_validation() {
   assert(error == garlyn::DecodeError::PROFILE_PIN);
 }
 
+void test_delivery_queue() {
+  garlyn::DeliveryQueue queue;
+  assert(queue.empty());
+  assert(queue.enqueue("first") == garlyn::EnqueueResult::QUEUED);
+  assert(queue.enqueue("second") == garlyn::EnqueueResult::QUEUED);
+  assert(queue.size() == 2);
+
+  std::string payload;
+  assert(queue.front(&payload));
+  assert(payload == "first");
+
+  const auto stored = queue.state();
+  garlyn::DeliveryQueue restored;
+  assert(restored.restore(stored));
+  assert(restored.front(&payload));
+  assert(payload == "first");
+  assert(restored.pop());
+  assert(restored.front(&payload));
+  assert(payload == "second");
+  assert(restored.pop());
+  assert(restored.empty());
+
+  auto corrupted = stored;
+  corrupted.payloads[0][0] ^= 0x01;
+  assert(!restored.restore(corrupted));
+  assert(restored.empty());
+}
+
+void test_delivery_queue_bounds() {
+  garlyn::DeliveryQueue queue;
+  assert(queue.enqueue("") == garlyn::EnqueueResult::INVALID);
+  assert(queue.enqueue(std::string(garlyn::GARLYN_MAX_PAYLOAD_SIZE + 1, 'x')) ==
+         garlyn::EnqueueResult::TOO_LARGE);
+  for (size_t index = 0; index < garlyn::GARLYN_DELIVERY_QUEUE_CAPACITY;
+       index++) {
+    assert(queue.enqueue("synthetic-" + std::to_string(index)) ==
+           garlyn::EnqueueResult::QUEUED);
+  }
+  assert(queue.enqueue("overflow") == garlyn::EnqueueResult::FULL);
+
+  std::string payload;
+  for (size_t index = 0; index < 3; index++) {
+    assert(queue.front(&payload));
+    assert(payload == "synthetic-" + std::to_string(index));
+    assert(queue.pop());
+  }
+  for (size_t index = garlyn::GARLYN_DELIVERY_QUEUE_CAPACITY;
+       index < garlyn::GARLYN_DELIVERY_QUEUE_CAPACITY + 3; index++) {
+    assert(queue.enqueue("synthetic-" + std::to_string(index)) ==
+           garlyn::EnqueueResult::QUEUED);
+  }
+  for (size_t index = 3;
+       index < garlyn::GARLYN_DELIVERY_QUEUE_CAPACITY + 3; index++) {
+    assert(queue.front(&payload));
+    assert(payload == "synthetic-" + std::to_string(index));
+    assert(queue.pop());
+  }
+  assert(queue.empty());
+}
+
+void test_delivery_statuses() {
+  assert(garlyn::classify_http_status(200) ==
+         garlyn::DeliveryDisposition::ACKNOWLEDGED);
+  assert(garlyn::classify_http_status(202) ==
+         garlyn::DeliveryDisposition::ACKNOWLEDGED);
+  assert(garlyn::classify_http_status(409) ==
+         garlyn::DeliveryDisposition::RETRY);
+  assert(garlyn::classify_http_status(500) ==
+         garlyn::DeliveryDisposition::RETRY);
+  assert(garlyn::delivery_preference_key("synthetic_scale_1") ==
+         garlyn::delivery_preference_key("synthetic_scale_1"));
+  assert(garlyn::delivery_preference_key("synthetic_scale_1") !=
+         garlyn::delivery_preference_key("synthetic_scale_2"));
+}
+
 std::string build_synthetic_json() {
   const auto measurement = decode_synthetic_frame();
   std::string payload;
@@ -127,6 +203,9 @@ int main(int argc, char **argv) {
   test_reassembly();
   test_decode();
   test_validation();
+  test_delivery_queue();
+  test_delivery_queue_bounds();
+  test_delivery_statuses();
   const std::string payload = build_synthetic_json();
   if (argc == 2 && std::strcmp(argv[1], "--print-json") == 0) {
     std::cout << payload << '\n';

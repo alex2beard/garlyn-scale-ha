@@ -8,6 +8,10 @@ esp32:
 
 logger:
 
+http_request:
+  id: test_http
+  timeout: 5s
+
 wifi:
   ssid: synthetic-test-network
   password: synthetic-test-password
@@ -35,4 +39,7 @@ garlyn_scale_ble:
   id: garlyn_decoder
   ble_client_id: garlyn_ble
   time_id: test_time
+  http_request_id: test_http
   scale_id: synthetic_scale_1
+  webhook_url: http://192.0.2.1/api/webhook/synthetic-test-webhook
+  retry_interval: 60s

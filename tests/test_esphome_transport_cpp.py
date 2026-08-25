@@ -27,6 +27,7 @@ def decoder_test_binary(tmp_path_factory: pytest.TempPathFactory) -> Path:
             "-Werror",
             "-pedantic",
             f"-I{ROOT}",
+            str(ROOT / "components" / "garlyn_scale_ble" / "garlyn_delivery.cpp"),
             str(ROOT / "components" / "garlyn_scale_ble" / "garlyn_protocol.cpp"),
             str(ROOT / "tests_cpp" / "test_garlyn_protocol.cpp"),
             "-o",

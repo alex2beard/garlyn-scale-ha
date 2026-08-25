@@ -36,12 +36,13 @@ The repository now contains an executable profile-aware measurement pipeline:
   automatic entity cleanup when a profile is deleted;
 - a privacy-safe synthetic regression fixture and unit tests;
 - an ESPHome external component that reassembles and validates fragmented FFF3
-  measurements, decodes all ten BIA values, and logs transport-v1 JSON.
+  measurements, decodes all ten BIA values, persists a bounded delivery queue,
+  and posts transport-v1 JSON to the Home Assistant webhook.
 
-It is **not ready for normal end-to-end Home Assistant use yet**. The ESPHome
-decoder is currently log-only; HTTP delivery, its persistent retry queue, and
-the SparkyFitness sender are not implemented. Calculated fields beyond the
-eight verified outputs remain disabled until their semantics are independently
+The direct ESPHome-to-Home Assistant path is implemented but remains
+experimental while real-device delivery and restart recovery are field-tested.
+The SparkyFitness sender is not implemented. Calculated fields beyond the eight
+verified outputs remain disabled until their semantics are independently
 confirmed.
 
 No `DataUpdateCoordinator` is used: this is a push integration.
@@ -229,12 +230,13 @@ The repository includes the `garlyn_scale_ble` ESPHome external component. It
 owns the `FFF3` indication subscription, reassembles the usual fragmented
 68-byte result, verifies its checksum and BCD profile PIN, decodes weight and
 all ten impedances, and emits the exact JSON shape documented above to the ESP
-log. Raw frames are not logged.
+log at verbose level. It stores up to eight pending payloads in ESP32 NVS before
+attempting delivery and removes one only after Home Assistant returns `202`
+(`accepted`) or `200` (`duplicate`). Raw frames are not logged.
 
-This milestone is intentionally log-only. See
+See
 [`docs/esphome-transport.md`](docs/esphome-transport.md) for the confirmed frame
-layout, privacy-safe test vector, and ESPHome configuration. HTTP delivery and
-restart-safe retry storage will be added only after a real-scale decoder test.
+layout, privacy-safe test vector, queue behavior, and ESPHome configuration.
 
 ## Synthetic public regression vector
 
@@ -266,5 +268,5 @@ python -m pytest
 
 This project is available under the [MIT License](LICENSE).
 
-The next milestone is a real-scale validation of the log-only ESPHome decoder,
-followed by reliable delivery of the same payload to the local webhook.
+The next milestone is real-scale validation of webhook delivery and restart
+recovery, followed by the optional SparkyFitness sender.
