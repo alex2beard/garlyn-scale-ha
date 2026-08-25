@@ -1,0 +1,139 @@
+{
+  "title": "Весы GARLYN",
+  "config": {
+    "create_entry": {
+      "default": "ID весов: `{scale_id}`\n\nЛокальный путь webhook: `{webhook_path}`\n\nНастройте ESP-транспорт на отправку JSON измерения версии 1 методом POST на этот путь вашего Home Assistant. Endpoint принимает запросы только из локальной сети."
+    },
+    "error": {
+      "invalid_name": "Введите непустое имя весов."
+    },
+    "step": {
+      "user": {
+        "title": "Добавить весы GARLYN",
+        "description": "Создайте отдельную запись для одних физических весов и их ESP-транспорта.",
+        "data": {
+          "scale_name": "Имя весов"
+        },
+        "data_description": {
+          "scale_name": "Понятное имя этих весов в Home Assistant."
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_profile": "Проверьте все поля. Дата рождения должна соответствовать текущему возрасту от 1 до 120 лет.",
+      "pin_already_configured": "Этот четырёхзначный PIN уже назначен другому профилю."
+    },
+    "step": {
+      "init": {
+        "title": "Управление профилями",
+        "description": "Настроено профилей: {profile_count}",
+        "menu_options": {
+          "add_profile": "Добавить профиль",
+          "edit_profile": "Изменить профиль",
+          "delete_profile": "Удалить профиль"
+        }
+      },
+      "add_profile": {
+        "title": "Добавить профиль",
+        "description": "Весы передают четырёхзначный PIN с каждым завершённым измерением. Один PIN может принадлежать только одному профилю.",
+        "data": {
+          "name": "Имя",
+          "profile_pin": "PIN профиля GARLYN",
+          "sex": "Пол",
+          "date_of_birth": "Дата рождения",
+          "height_cm": "Рост",
+          "athlete_mode": "Режим атлета",
+          "reference_standard": "Эталонная шкала"
+        },
+        "data_description": {
+          "profile_pin": "Ровно четыре цифры. Нули в начале сохраняются.",
+          "date_of_birth": "Возраст вычисляется отдельно на дату каждого измерения.",
+          "athlete_mode": "Выключено — нативное значение активности 0; включено — значение 5.",
+          "reference_standard": "Внешняя/международная шкала — обычный вариант по умолчанию вне Китая."
+        }
+      },
+      "edit_profile": {
+        "title": "Выберите профиль для изменения",
+        "data": {
+          "profile_pin": "Профиль"
+        }
+      },
+      "edit_profile_details": {
+        "title": "Изменить профиль",
+        "description": "При смене PIN профиль переносится на новый PIN без потери настроек.",
+        "data": {
+          "name": "Имя",
+          "profile_pin": "PIN профиля GARLYN",
+          "sex": "Пол",
+          "date_of_birth": "Дата рождения",
+          "height_cm": "Рост",
+          "athlete_mode": "Режим атлета",
+          "reference_standard": "Эталонная шкала"
+        },
+        "data_description": {
+          "profile_pin": "Ровно четыре цифры. Нули в начале сохраняются.",
+          "date_of_birth": "Возраст вычисляется отдельно на дату каждого измерения.",
+          "athlete_mode": "Выключено — нативное значение активности 0; включено — значение 5.",
+          "reference_standard": "Внешняя/международная шкала — обычный вариант по умолчанию вне Китая."
+        }
+      },
+      "delete_profile": {
+        "title": "Выберите профиль для удаления",
+        "data": {
+          "profile_pin": "Профиль"
+        }
+      },
+      "confirm_delete_profile": {
+        "title": "Удалить профиль?",
+        "description": "Удалить профиль {profile_name} (PIN {profile_pin})? Новые измерения с этим PIN будут отклоняться, пока профиль не будет настроен снова."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "profile_weight": {
+        "name": "{profile_name}: Вес"
+      },
+      "profile_body_fat_percentage": {
+        "name": "{profile_name}: Доля жира"
+      },
+      "profile_body_fat_mass": {
+        "name": "{profile_name}: Масса жира"
+      },
+      "profile_muscle_percentage": {
+        "name": "{profile_name}: Доля мышц"
+      },
+      "profile_muscle_mass": {
+        "name": "{profile_name}: Масса мышц"
+      },
+      "profile_body_water_percentage": {
+        "name": "{profile_name}: Доля воды"
+      },
+      "profile_body_water_mass": {
+        "name": "{profile_name}: Масса воды"
+      },
+      "profile_basal_metabolic_rate": {
+        "name": "{profile_name}: Основной обмен"
+      },
+      "profile_body_mass_index": {
+        "name": "{profile_name}: Индекс массы тела"
+      }
+    }
+  },
+  "selector": {
+    "sex": {
+      "options": {
+        "female": "Женский",
+        "male": "Мужской"
+      }
+    },
+    "reference_standard": {
+      "options": {
+        "external": "Внешняя / международная",
+        "internal": "Внутренняя / Китай"
+      }
+    }
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "title": "GARLYN Scale",
+  "config": {
+    "create_entry": {
+      "default": "Scale ID: `{scale_id}`\n\nLocal webhook path: `{webhook_path}`\n\nConfigure the ESP transport to POST version-1 measurement JSON to this path on your Home Assistant instance. The endpoint accepts local-network requests only."
+    },
+    "error": {
+      "invalid_name": "Enter a non-empty scale name."
+    },
+    "step": {
+      "user": {
+        "title": "Add a GARLYN scale",
+        "description": "Create one entry for one physical scale and its ESP transport.",
+        "data": {
+          "scale_name": "Scale name"
+        },
+        "data_description": {
+          "scale_name": "A friendly name used for this scale in Home Assistant."
+        }
+      }
+    }
+  },
+  "options": {
+    "error": {
+      "invalid_profile": "Check all profile fields. Date of birth must give a current age from 1 through 120 years.",
+      "pin_already_configured": "This four-digit PIN is already assigned to another profile."
+    },
+    "step": {
+      "init": {
+        "title": "Manage profiles",
+        "description": "Configured profiles: {profile_count}",
+        "menu_options": {
+          "add_profile": "Add profile",
+          "edit_profile": "Edit profile",
+          "delete_profile": "Delete profile"
+        }
+      },
+      "add_profile": {
+        "title": "Add profile",
+        "description": "The scale sends the four-digit PIN with every completed measurement. Each PIN can belong to only one profile.",
+        "data": {
+          "name": "Name",
+          "profile_pin": "GARLYN profile PIN",
+          "sex": "Sex",
+          "date_of_birth": "Date of birth",
+          "height_cm": "Height",
+          "athlete_mode": "Athlete Mode",
+          "reference_standard": "Reference standard"
+        },
+        "data_description": {
+          "profile_pin": "Exactly four digits. Leading zeroes are preserved.",
+          "date_of_birth": "Age is calculated separately for the date of each measurement.",
+          "athlete_mode": "Off maps to native activity value 0; on maps to value 5.",
+          "reference_standard": "External/international is the normal default outside China."
+        }
+      },
+      "edit_profile": {
+        "title": "Choose a profile to edit",
+        "data": {
+          "profile_pin": "Profile"
+        }
+      },
+      "edit_profile_details": {
+        "title": "Edit profile",
+        "description": "Changing the PIN moves the profile to the new PIN without losing its settings.",
+        "data": {
+          "name": "Name",
+          "profile_pin": "GARLYN profile PIN",
+          "sex": "Sex",
+          "date_of_birth": "Date of birth",
+          "height_cm": "Height",
+          "athlete_mode": "Athlete Mode",
+          "reference_standard": "Reference standard"
+        },
+        "data_description": {
+          "profile_pin": "Exactly four digits. Leading zeroes are preserved.",
+          "date_of_birth": "Age is calculated separately for the date of each measurement.",
+          "athlete_mode": "Off maps to native activity value 0; on maps to value 5.",
+          "reference_standard": "External/international is the normal default outside China."
+        }
+      },
+      "delete_profile": {
+        "title": "Choose a profile to delete",
+        "data": {
+          "profile_pin": "Profile"
+        }
+      },
+      "confirm_delete_profile": {
+        "title": "Delete profile?",
+        "description": "Delete {profile_name} (PIN {profile_pin})? New measurements for this PIN will be rejected until a profile is configured again."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "profile_weight": {
+        "name": "{profile_name}: Weight"
+      },
+      "profile_body_fat_percentage": {
+        "name": "{profile_name}: Body fat"
+      },
+      "profile_body_fat_mass": {
+        "name": "{profile_name}: Body fat mass"
+      },
+      "profile_muscle_percentage": {
+        "name": "{profile_name}: Muscle"
+      },
+      "profile_muscle_mass": {
+        "name": "{profile_name}: Muscle mass"
+      },
+      "profile_body_water_percentage": {
+        "name": "{profile_name}: Body water"
+      },
+      "profile_body_water_mass": {
+        "name": "{profile_name}: Body water mass"
+      },
+      "profile_basal_metabolic_rate": {
+        "name": "{profile_name}: Basal metabolic rate"
+      },
+      "profile_body_mass_index": {
+        "name": "{profile_name}: Body mass index"
+      }
+    }
+  },
+  "selector": {
+    "sex": {
+      "options": {
+        "female": "Female",
+        "male": "Male"
+      }
+    },
+    "reference_standard": {
+      "options": {
+        "external": "External / international",
+        "internal": "Internal / China"
+      }
+    }
+  }
+}

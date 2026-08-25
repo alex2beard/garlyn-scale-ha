@@ -1,0 +1,12 @@
+{
+  "domain": "garlyn_scale",
+  "name": "GARLYN Scale",
+  "codeowners": ["@alex2beard"],
+  "config_flow": true,
+  "dependencies": ["webhook"],
+  "documentation": "https://github.com/alex2beard/garlyn-scale-ha",
+  "integration_type": "device",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/alex2beard/garlyn-scale-ha/issues",
+  "version": "0.3.1"
+}

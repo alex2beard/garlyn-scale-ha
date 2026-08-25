@@ -1,0 +1,17 @@
+[project]
+name = "garlyn-scale-ha"
+version = "0.3.1"
+description = "Experimental GARLYN Bodyscan Master integration for Home Assistant"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]

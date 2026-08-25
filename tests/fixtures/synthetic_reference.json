@@ -1,0 +1,36 @@
+{
+  "fixture_version": 1,
+  "data_origin": "synthetic",
+  "description": "Privacy-safe regression vector generated for public tests; not a device capture.",
+  "algorithm_version": "bodyFatScaleAlg_2.2.2",
+  "algorithm_type": 2,
+  "profile": {
+    "sex": "female",
+    "height_cm": 175.0,
+    "age_years": 34,
+    "activity_level": 0,
+    "reference_standard": "external"
+  },
+  "measurement": {
+    "protocol_version": 1,
+    "scale_id": "synthetic_scale_1",
+    "measurement_id": "synthetic-reference-001",
+    "measured_at": "2026-01-15T12:00:00+00:00",
+    "profile_pin": "4242",
+    "weight_kg": 74.8,
+    "bia": {
+      "20khz": [410.2, 408.6, 360.4, 355.9, 30.1],
+      "100khz": [365.1, 363.8, 315.6, 312.2, 26.5]
+    }
+  },
+  "expected": {
+    "body_fat_pct": 32.804783,
+    "body_fat_kg": 24.53798,
+    "muscle_pct": 62.367653,
+    "muscle_kg": 46.65101,
+    "body_water_pct": 49.125523,
+    "body_water_kg": 36.745892,
+    "bmr_kcal": 1455,
+    "bmi": 24.42449
+  }
+}
