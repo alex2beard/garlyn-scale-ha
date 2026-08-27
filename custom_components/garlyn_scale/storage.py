@@ -10,6 +10,7 @@ from .algorithm import BodyCompositionResult
 from .const import CONF_PROFILES, DOMAIN, TRANSPORT_PROTOCOL_VERSION
 from .models import deserialize_profiles, serialize_profiles
 from .runtime import ProcessedMeasurement, ScaleRuntime
+from .sparky import SparkyOutbox
 from .transport import parse_measurement
 
 if TYPE_CHECKING:
@@ -17,10 +18,11 @@ if TYPE_CHECKING:
     from homeassistant.helpers.storage import Store
 
 _STORAGE_VERSION = 1
+_STORAGE_MINOR_VERSION = 2
 _STORAGE_KEY_PREFIX = f"{DOMAIN}.runtime"
 _MAX_STORED_MEASUREMENT_IDS = 10_000
 
-_STATE_KEYS = frozenset(
+_LEGACY_STATE_KEYS = frozenset(
     {
         "scale_id",
         "seen_measurement_ids",
@@ -28,6 +30,7 @@ _STATE_KEYS = frozenset(
         "last_profile_pin",
     }
 )
+_STATE_KEYS = _LEGACY_STATE_KEYS | {"sparky_outbox"}
 _PROCESSED_KEYS = frozenset({"measurement", "profile", "result", "algorithm_version"})
 _RESULT_KEYS = frozenset(
     {
@@ -93,15 +96,17 @@ def _serialize_processed(processed: ProcessedMeasurement) -> dict[str, object]:
     profile_pin = processed.measurement.profile_pin
     return {
         "measurement": _serialize_measurement(processed),
-        "profile": serialize_profiles({profile_pin: processed.user_profile})[
-            profile_pin
-        ],
+        "profile": serialize_profiles(
+            {profile_pin: processed.user_profile}, include_sparky=False
+        )[profile_pin],
         "result": _serialize_result(processed.result),
         "algorithm_version": processed.algorithm_version,
     }
 
 
-def serialize_runtime_state(runtime: ScaleRuntime) -> dict[str, object]:
+def serialize_runtime_state(
+    runtime: ScaleRuntime, outbox: SparkyOutbox | None = None
+) -> dict[str, object]:
     """Return a deterministic JSON-safe snapshot of accepted runtime state."""
     return {
         "scale_id": runtime.scale_id,
@@ -111,6 +116,7 @@ def serialize_runtime_state(runtime: ScaleRuntime) -> dict[str, object]:
             for profile_pin in sorted(runtime.latest_by_profile)
         },
         "last_profile_pin": runtime.last_profile_pin,
+        "sparky_outbox": (outbox or SparkyOutbox()).as_dict(),
     }
 
 
@@ -165,9 +171,14 @@ def _deserialize_processed(
     )
 
 
-def restore_runtime_state(runtime: ScaleRuntime, value: object) -> None:
-    """Validate and restore a persistent snapshot into an empty runtime."""
-    stored = _exact_mapping(value, _STATE_KEYS, "runtime state")
+def restore_runtime_state(runtime: ScaleRuntime, value: object) -> SparkyOutbox:
+    """Validate and restore runtime state, returning its optional Sparky outbox."""
+    if not isinstance(value, Mapping):
+        raise ValueError("runtime state must be a mapping")
+    stored_keys = frozenset(value)
+    if stored_keys not in (_LEGACY_STATE_KEYS, _STATE_KEYS):
+        raise ValueError("runtime state has invalid stored fields")
+    stored = value
     scale_id = stored["scale_id"]
     if scale_id != runtime.scale_id:
         raise ValueError("stored runtime state belongs to a different scale")
@@ -199,11 +210,14 @@ def restore_runtime_state(runtime: ScaleRuntime, value: object) -> None:
     if last_profile_pin is not None and not isinstance(last_profile_pin, str):
         raise ValueError("last_profile_pin must be a string or null")
 
+    outbox = SparkyOutbox.from_dict(stored.get("sparky_outbox", []))
+
     runtime.restore_state(
         seen_measurement_ids=raw_seen,
         latest_by_profile=latest_by_profile,
         last_profile_pin=last_profile_pin,
     )
+    return outbox
 
 
 class RuntimeStateStore:
@@ -218,16 +232,20 @@ class RuntimeStateStore:
             f"{_STORAGE_KEY_PREFIX}.{entry_id}",
             private=True,
             atomic_writes=True,
+            minor_version=_STORAGE_MINOR_VERSION,
         )
 
-    async def async_load(self, runtime: ScaleRuntime) -> None:
-        """Load state if it exists."""
+    async def async_load(self, runtime: ScaleRuntime) -> SparkyOutbox:
+        """Load state if it exists and return the restored Sparky outbox."""
         if (stored := await self._store.async_load()) is not None:
-            restore_runtime_state(runtime, stored)
+            return restore_runtime_state(runtime, stored)
+        return SparkyOutbox()
 
-    async def async_save(self, runtime: ScaleRuntime) -> None:
+    async def async_save(
+        self, runtime: ScaleRuntime, outbox: SparkyOutbox | None = None
+    ) -> None:
         """Persist the current accepted state before acknowledging delivery."""
-        await self._store.async_save(serialize_runtime_state(runtime))
+        await self._store.async_save(serialize_runtime_state(runtime, outbox))
 
     async def async_remove(self) -> None:
         """Remove persistent state with its config entry."""

@@ -55,6 +55,17 @@ class ProcessedMeasurement:
     algorithm_version: str = ALGORITHM_VERSION
 
 
+@dataclass(frozen=True, slots=True)
+class RuntimeCheckpoint:
+    """Internal in-memory snapshot used while persisting an acceptance."""
+
+    seen_measurement_ids: tuple[str, ...]
+    latest_by_profile: dict[str, ProcessedMeasurement]
+    last_measurement: Measurement | None
+    last_processed_measurement: ProcessedMeasurement | None
+    published_measurement_id: str | None
+
+
 type MeasurementListener = Callable[[ProcessedMeasurement], None]
 
 
@@ -198,6 +209,26 @@ class ScaleRuntime:
             self._listeners.discard(listener)
 
         return remove_listener
+
+    def checkpoint(self) -> RuntimeCheckpoint:
+        """Capture mutable runtime state before an atomic Store write."""
+        return RuntimeCheckpoint(
+            seen_measurement_ids=tuple(self._seen),
+            latest_by_profile=dict(self.latest_by_profile),
+            last_measurement=self.last_measurement,
+            last_processed_measurement=self.last_processed_measurement,
+            published_measurement_id=self._published_measurement_id,
+        )
+
+    def restore_checkpoint(self, checkpoint: RuntimeCheckpoint) -> None:
+        """Roll back an acceptance whose persistent Store write failed."""
+        if not isinstance(checkpoint, RuntimeCheckpoint):
+            raise TypeError("checkpoint must be a RuntimeCheckpoint")
+        self._seen = OrderedDict.fromkeys(checkpoint.seen_measurement_ids)
+        self.latest_by_profile = dict(checkpoint.latest_by_profile)
+        self.last_measurement = checkpoint.last_measurement
+        self.last_processed_measurement = checkpoint.last_processed_measurement
+        self._published_measurement_id = checkpoint.published_measurement_id
 
     def publish_last_processed(self) -> None:
         """Publish the latest persisted sample exactly once to active consumers."""

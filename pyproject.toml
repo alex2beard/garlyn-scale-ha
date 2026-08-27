@@ -1,7 +1,7 @@
 [project]
 name = "garlyn-scale-ha"
-version = "0.5.0"
-description = "Experimental GARLYN Bodyscan Master integration for Home Assistant"
+version = "0.6.0"
+description = "Unofficial GARLYN Bodyscan Master integration for Home Assistant"
 requires-python = ">=3.12"
 
 [tool.pytest.ini_options]

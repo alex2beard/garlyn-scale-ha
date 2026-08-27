@@ -13,6 +13,9 @@ import pytest
 from custom_components.garlyn_scale.const import (
     CONF_PROFILES,
     CONF_SCALE_ID,
+    CONF_SPARKY_API_KEY,
+    CONF_SPARKY_ENABLED,
+    CONF_SPARKY_URL,
     CONF_WEBHOOK_ID,
 )
 from custom_components.garlyn_scale.models import deserialize_profiles
@@ -81,7 +84,11 @@ def config_flow_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     selector.SelectSelectorMode = SimpleNamespace(DROPDOWN="dropdown")  # type: ignore[attr-defined]
     selector.TextSelector = _Selector  # type: ignore[attr-defined]
     selector.TextSelectorConfig = _SelectorConfig  # type: ignore[attr-defined]
-    selector.TextSelectorType = SimpleNamespace(DATE="date")  # type: ignore[attr-defined]
+    selector.TextSelectorType = SimpleNamespace(  # type: ignore[attr-defined]
+        DATE="date",
+        PASSWORD="password",
+        URL="url",
+    )
     helpers.selector = selector  # type: ignore[attr-defined]
 
     modules = {
@@ -103,7 +110,12 @@ def config_flow_module(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     sys.modules.pop(module_name, None)
 
 
-def _profile_input(*, profile_pin: str = "4242") -> dict[str, object]:
+def _profile_input(
+    *,
+    profile_pin: str = "4242",
+    sparky_enabled: bool = False,
+    sparky_api_key: str = "",
+) -> dict[str, object]:
     return {
         "name": "Synthetic profile",
         "profile_pin": profile_pin,
@@ -112,6 +124,8 @@ def _profile_input(*, profile_pin: str = "4242") -> dict[str, object]:
         "height_cm": 175,
         "athlete_mode": False,
         "reference_standard": "external",
+        CONF_SPARKY_ENABLED: sparky_enabled,
+        CONF_SPARKY_API_KEY: sparky_api_key,
     }
 
 
@@ -129,7 +143,11 @@ def test_empty_options_menu_and_add_profile(config_flow_module: ModuleType) -> N
 
     menu = asyncio.run(flow.async_step_init())  # type: ignore[attr-defined]
     assert menu["type"] == "menu"
-    assert menu["menu_options"] == ["connection_info", "add_profile"]
+    assert menu["menu_options"] == [
+        "connection_info",
+        "sparky_settings",
+        "add_profile",
+    ]
     assert menu["description_placeholders"] == {"profile_count": "0"}
 
     connection_info = asyncio.run(  # type: ignore[attr-defined]
@@ -150,6 +168,7 @@ def test_empty_options_menu_and_add_profile(config_flow_module: ModuleType) -> N
     profiles = deserialize_profiles(result["data"])
     assert profiles["4242"].name == "Synthetic profile"
     assert profiles["4242"].athlete_mode is False
+    assert profiles["4242"].sparky_enabled is False
 
 
 def test_profile_form_uses_native_date_input(config_flow_module: ModuleType) -> None:
@@ -162,6 +181,83 @@ def test_profile_form_uses_native_date_input(config_flow_module: ModuleType) -> 
 
     assert isinstance(date_selector, _Selector)
     assert date_selector.config == {"type": "date"}
+
+    api_key_selector = next(
+        validator
+        for field, validator in schema.schema.items()
+        if field.schema == CONF_SPARKY_API_KEY
+    )
+    assert isinstance(api_key_selector, _Selector)
+    assert api_key_selector.config == {"type": "password"}
+
+
+def test_sparky_url_is_normalized_and_can_be_cleared(
+    config_flow_module: ModuleType,
+) -> None:
+    flow = _flow(config_flow_module, {})
+
+    saved = asyncio.run(  # type: ignore[attr-defined]
+        flow.async_step_sparky_settings(
+            {CONF_SPARKY_URL: " HTTPS://sparky.example.com/base/ "}
+        )
+    )
+    assert saved["type"] == "create_entry"
+    assert saved["data"][CONF_SPARKY_URL] == "https://sparky.example.com/base"
+
+    cleared = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, saved["data"]).async_step_sparky_settings(
+            {CONF_SPARKY_URL: ""}
+        )
+    )
+    assert cleared["type"] == "create_entry"
+    assert CONF_SPARKY_URL not in cleared["data"]
+
+
+def test_sparky_profile_requires_url_and_api_key(
+    config_flow_module: ModuleType,
+) -> None:
+    without_key = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, {}).async_step_add_profile(
+            _profile_input(sparky_enabled=True)
+        )
+    )
+    assert without_key["errors"] == {CONF_SPARKY_API_KEY: "sparky_api_key_required"}
+
+    without_url = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, {}).async_step_add_profile(
+            _profile_input(sparky_enabled=True, sparky_api_key="secret-token")
+        )
+    )
+    assert without_url["errors"] == {"base": "sparky_url_required"}
+
+    options = {CONF_SPARKY_URL: "https://sparky.example.com"}
+    saved = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, options).async_step_add_profile(
+            _profile_input(sparky_enabled=True, sparky_api_key=" secret-token ")
+        )
+    )
+    profile = deserialize_profiles(saved["data"])["4242"]
+    assert profile.sparky_enabled is True
+    assert profile.sparky_api_key == "secret-token"
+
+
+def test_enabled_profile_prevents_clearing_sparky_url(
+    config_flow_module: ModuleType,
+) -> None:
+    options = {CONF_SPARKY_URL: "https://sparky.example.com"}
+    saved = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, options).async_step_add_profile(
+            _profile_input(sparky_enabled=True, sparky_api_key="secret-token")
+        )
+    )
+
+    result = asyncio.run(  # type: ignore[attr-defined]
+        _flow(config_flow_module, saved["data"]).async_step_sparky_settings(
+            {CONF_SPARKY_URL: ""}
+        )
+    )
+    assert result["type"] == "form"
+    assert result["errors"] == {CONF_SPARKY_URL: "sparky_url_required"}
 
 
 def test_duplicate_pin_is_rejected(config_flow_module: ModuleType) -> None:

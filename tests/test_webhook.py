@@ -139,6 +139,44 @@ def test_failed_persistence_does_not_publish_sensor_state() -> None:
         )
 
     assert published_ids == []
+    assert runtime.seen_count == 0
+    assert runtime.last_processed_measurement is None
+
+    accepted = asyncio.run(
+        async_handle_measurement(
+            runtime,
+            FakeRequest(_payload()),  # type: ignore[arg-type]
+            lambda state: asyncio.sleep(0),
+        )
+    )
+    assert accepted.status == 202
+
+
+def test_failed_persistence_rolls_back_prepared_downstream_state() -> None:
+    runtime = _runtime()
+    queued_ids: list[str] = []
+
+    def prepare_state(processed):
+        queued_ids.append(processed.measurement.measurement_id)
+        return lambda: queued_ids.pop()
+
+    async def fail_save(state: ScaleRuntime) -> None:
+        assert state.seen_count == 1
+        assert queued_ids == ["measurement-1"]
+        raise RuntimeError("storage unavailable")
+
+    with pytest.raises(RuntimeError, match="storage unavailable"):
+        asyncio.run(
+            async_handle_measurement(
+                runtime,
+                FakeRequest(_payload()),  # type: ignore[arg-type]
+                fail_save,
+                prepare_state,
+            )
+        )
+
+    assert queued_ids == []
+    assert runtime.seen_count == 0
 
 
 def test_unknown_profile_returns_conflict_without_consuming_measurement_id() -> None:

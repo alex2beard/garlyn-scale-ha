@@ -40,11 +40,19 @@ from .const import (
     CONF_SCALE_ID,
     CONF_SCALE_NAME,
     CONF_SEX,
+    CONF_SPARKY_API_KEY,
+    CONF_SPARKY_ENABLED,
+    CONF_SPARKY_URL,
     CONF_WEBHOOK_ID,
     DEFAULT_SCALE_NAME,
     DOMAIN,
 )
 from .models import UserProfile, age_on, deserialize_profiles, serialize_profiles
+from .sparky import normalize_sparky_url
+
+
+class _SparkyApiKeyRequiredError(ValueError):
+    """Raised when a profile enables Sparky without an API key."""
 
 
 def _profile_form_schema(profile: UserProfile | None = None) -> vol.Schema:
@@ -59,6 +67,8 @@ def _profile_form_schema(profile: UserProfile | None = None) -> vol.Schema:
             CONF_HEIGHT_CM: profile.height_cm,
             CONF_ATHLETE_MODE: profile.athlete_mode,
             CONF_REFERENCE_STANDARD: profile.reference_standard.value,
+            CONF_SPARKY_ENABLED: profile.sparky_enabled,
+            CONF_SPARKY_API_KEY: profile.sparky_api_key or "",
         }
 
     return vol.Schema(
@@ -116,6 +126,14 @@ def _profile_form_schema(profile: UserProfile | None = None) -> vol.Schema:
                     translation_key="reference_standard",
                 )
             ),
+            vol.Required(
+                CONF_SPARKY_ENABLED,
+                default=defaults.get(CONF_SPARKY_ENABLED, False),
+            ): bool,
+            vol.Optional(
+                CONF_SPARKY_API_KEY,
+                default=defaults.get(CONF_SPARKY_API_KEY, ""),
+            ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
         }
     )
 
@@ -134,6 +152,14 @@ def _profile_from_user_input(
     if not 1 <= current_age <= 120:
         raise ValueError("profile age must currently be in [1, 120]")
 
+    sparky_enabled = user_input[CONF_SPARKY_ENABLED]
+    raw_sparky_api_key = user_input.get(CONF_SPARKY_API_KEY, "")
+    if not isinstance(raw_sparky_api_key, str):
+        raise ValueError("Sparky API key must be a string")
+    sparky_api_key = raw_sparky_api_key.strip() or None
+    if sparky_enabled and sparky_api_key is None:
+        raise _SparkyApiKeyRequiredError
+
     return UserProfile(
         name=user_input[CONF_PROFILE_NAME],
         profile_pin=user_input[CONF_PROFILE_PIN],
@@ -143,6 +169,8 @@ def _profile_from_user_input(
         height_cm=user_input[CONF_HEIGHT_CM],
         athlete_mode=user_input[CONF_ATHLETE_MODE],
         reference_standard=ReferenceStandard(user_input[CONF_REFERENCE_STANDARD]),
+        sparky_enabled=sparky_enabled,
+        sparky_api_key=sparky_api_key,
     )
 
 
@@ -242,7 +270,7 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
         """Show profile-management actions."""
         del user_input
         profiles = self._profiles()
-        menu_options = ["connection_info", "add_profile"]
+        menu_options = ["connection_info", "sparky_settings", "add_profile"]
         if profiles:
             menu_options.extend(("edit_profile", "delete_profile"))
         return self.async_show_menu(
@@ -267,6 +295,45 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
             },
         )
 
+    async def async_step_sparky_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Configure the optional scale-wide SparkyFitness base URL."""
+        errors: dict[str, str] = {}
+        current_url = self.config_entry.options.get(CONF_SPARKY_URL, "")
+        if user_input is not None:
+            raw_url = user_input.get(CONF_SPARKY_URL, "")
+            if not isinstance(raw_url, str):
+                errors[CONF_SPARKY_URL] = "invalid_sparky_url"
+            elif not raw_url.strip():
+                if any(profile.sparky_enabled for profile in self._profiles().values()):
+                    errors[CONF_SPARKY_URL] = "sparky_url_required"
+                else:
+                    options = dict(self.config_entry.options)
+                    options.pop(CONF_SPARKY_URL, None)
+                    return self.async_create_entry(data=options)
+            else:
+                try:
+                    normalized_url = normalize_sparky_url(raw_url)
+                except ValueError:
+                    errors[CONF_SPARKY_URL] = "invalid_sparky_url"
+                else:
+                    options = dict(self.config_entry.options)
+                    options[CONF_SPARKY_URL] = normalized_url
+                    return self.async_create_entry(data=options)
+
+        return self.async_show_form(
+            step_id="sparky_settings",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_SPARKY_URL, default=current_url): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.URL)
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
     async def async_step_add_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -276,10 +343,16 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
         if user_input is not None:
             try:
                 profile = _profile_from_user_input(user_input)
+            except _SparkyApiKeyRequiredError:
+                errors[CONF_SPARKY_API_KEY] = "sparky_api_key_required"
             except (KeyError, TypeError, ValueError):
                 errors["base"] = "invalid_profile"
             else:
-                if profile.profile_pin in profiles:
+                if profile.sparky_enabled and not self.config_entry.options.get(
+                    CONF_SPARKY_URL
+                ):
+                    errors["base"] = "sparky_url_required"
+                elif profile.profile_pin in profiles:
                     errors[CONF_PROFILE_PIN] = "pin_already_configured"
                 else:
                     profiles[profile.profile_pin] = profile
@@ -322,6 +395,8 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
                     user_input,
                     profile_id=profiles[selected_pin].profile_id,
                 )
+            except _SparkyApiKeyRequiredError:
+                errors[CONF_SPARKY_API_KEY] = "sparky_api_key_required"
             except (KeyError, TypeError, ValueError):
                 errors["base"] = "invalid_profile"
             else:
@@ -329,7 +404,11 @@ class GarlynScaleOptionsFlow(OptionsFlowWithReload):
                     profile.profile_pin != selected_pin
                     and profile.profile_pin in profiles
                 )
-                if pin_conflicts:
+                if profile.sparky_enabled and not self.config_entry.options.get(
+                    CONF_SPARKY_URL
+                ):
+                    errors["base"] = "sparky_url_required"
+                elif pin_conflicts:
                     errors[CONF_PROFILE_PIN] = "pin_already_configured"
                 else:
                     del profiles[selected_pin]

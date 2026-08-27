@@ -24,6 +24,8 @@ from .const import (
     CONF_PROFILES,
     CONF_REFERENCE_STANDARD,
     CONF_SEX,
+    CONF_SPARKY_API_KEY,
+    CONF_SPARKY_ENABLED,
     DOMAIN,
 )
 
@@ -38,6 +40,10 @@ _LEGACY_STORED_PROFILE_KEYS = frozenset(
     }
 )
 _STORED_PROFILE_KEYS = _LEGACY_STORED_PROFILE_KEYS | {CONF_PROFILE_ID}
+_SPARKY_STORED_PROFILE_KEYS = _STORED_PROFILE_KEYS | {
+    CONF_SPARKY_ENABLED,
+    CONF_SPARKY_API_KEY,
+}
 
 
 def _legacy_profile_id(profile_pin: str) -> str:
@@ -108,6 +114,24 @@ class UserProfile:
             raise TypeError("athlete_mode must be a boolean")
         if not isinstance(self.sparky_enabled, bool):
             raise TypeError("sparky_enabled must be a boolean")
+        if self.sparky_api_key is not None:
+            if not isinstance(self.sparky_api_key, str):
+                raise TypeError("sparky_api_key must be a string or null")
+            if (
+                not self.sparky_api_key
+                or self.sparky_api_key != self.sparky_api_key.strip()
+                or len(self.sparky_api_key) > 512
+                or not self.sparky_api_key.isascii()
+                or any(
+                    not 33 <= ord(character) <= 126 for character in self.sparky_api_key
+                )
+            ):
+                raise ValueError(
+                    "sparky_api_key must be a non-empty ASCII token without "
+                    "whitespace or control characters and at most 512 characters"
+                )
+        if self.sparky_enabled and self.sparky_api_key is None:
+            raise ValueError("sparky_api_key is required when Sparky sync is enabled")
         if isinstance(self.height_cm, bool) or not isinstance(
             self.height_cm, int | float
         ):
@@ -132,6 +156,8 @@ class UserProfile:
 
 def serialize_profiles(
     profiles: Mapping[str, UserProfile],
+    *,
+    include_sparky: bool = True,
 ) -> dict[str, dict[str, object]]:
     """Serialize profiles to deterministic JSON-safe config-entry options."""
     serialized: dict[str, dict[str, object]] = {}
@@ -141,7 +167,7 @@ def serialize_profiles(
             raise TypeError("profiles must contain UserProfile values")
         if profile_pin != profile.profile_pin:
             raise ValueError("profile mapping key must match profile_pin")
-        serialized[profile_pin] = {
+        stored: dict[str, object] = {
             CONF_PROFILE_ID: profile.profile_id,
             CONF_PROFILE_NAME: profile.name,
             CONF_SEX: profile.sex.name.lower(),
@@ -150,6 +176,10 @@ def serialize_profiles(
             CONF_ATHLETE_MODE: profile.athlete_mode,
             CONF_REFERENCE_STANDARD: profile.reference_standard.value,
         }
+        if include_sparky:
+            stored[CONF_SPARKY_ENABLED] = profile.sparky_enabled
+            stored[CONF_SPARKY_API_KEY] = profile.sparky_api_key
+        serialized[profile_pin] = stored
     return serialized
 
 
@@ -166,7 +196,11 @@ def deserialize_profiles(options: Mapping[str, Any]) -> dict[str, UserProfile]:
         if not isinstance(raw_profile, Mapping):
             raise ValueError(f"profile {profile_pin!r} must be a mapping")
         stored_keys = frozenset(raw_profile)
-        if stored_keys not in (_LEGACY_STORED_PROFILE_KEYS, _STORED_PROFILE_KEYS):
+        if stored_keys not in (
+            _LEGACY_STORED_PROFILE_KEYS,
+            _STORED_PROFILE_KEYS,
+            _SPARKY_STORED_PROFILE_KEYS,
+        ):
             raise ValueError(f"profile {profile_pin!r} has invalid stored fields")
 
         raw_birth_date = raw_profile[CONF_DATE_OF_BIRTH]
@@ -196,6 +230,8 @@ def deserialize_profiles(options: Mapping[str, Any]) -> dict[str, UserProfile]:
             height_cm=raw_profile[CONF_HEIGHT_CM],
             athlete_mode=raw_profile[CONF_ATHLETE_MODE],
             reference_standard=raw_profile[CONF_REFERENCE_STANDARD],
+            sparky_enabled=raw_profile.get(CONF_SPARKY_ENABLED, False),
+            sparky_api_key=raw_profile.get(CONF_SPARKY_API_KEY),
         )
 
     profile_ids = [profile.profile_id for profile in profiles.values()]

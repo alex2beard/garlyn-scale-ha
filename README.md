@@ -37,13 +37,14 @@ The repository now contains an executable profile-aware measurement pipeline:
 - a privacy-safe synthetic regression fixture and unit tests;
 - an ESPHome external component that reassembles and validates fragmented FFF3
   measurements, decodes all ten BIA values, persists a bounded delivery queue,
-  and posts transport-v1 JSON to the Home Assistant webhook.
+  and posts transport-v1 JSON to the Home Assistant webhook;
+- optional per-profile SparkyFitness synchronization of the seven agreed body
+  measurements through a restart-safe Home Assistant outbox.
 
 The direct ESPHome-to-Home Assistant path has been field-tested with a physical
 scale, including webhook retry and delivery-queue recovery after an ESP restart.
-The SparkyFitness sender is not implemented. Calculated fields beyond the eight
-verified outputs remain disabled until their semantics are independently
-confirmed.
+Calculated fields beyond the eight verified outputs remain disabled until their
+semantics are independently confirmed.
 
 No `DataUpdateCoordinator` is used: this is a push integration.
 
@@ -76,9 +77,9 @@ Stable, field-tested versions are published as GitHub Releases named
 development channel and may contain changes that have not completed field
 testing.
 
-ESPHome configurations should pin the external component to the same exact
-release tag, for example `ref: v0.5.0`, and update that reference intentionally
-when moving to a newer release.
+ESPHome configurations should pin the external component to a tested release
+tag. An integration-only update does not require reflashing the ESP; update its
+`ref` only when the release notes describe an ESPHome component change.
 
 ## Confirmed measurement model
 
@@ -138,13 +139,47 @@ The current options flow stores:
 - date of birth (age is calculated for the measurement date);
 - height in centimetres;
 - Athlete Mode;
-- reference standard.
+- reference standard;
+- optional SparkyFitness enable switch and private API key.
 
 It also maintains an internal stable profile ID used for entity continuity. The
 ID is not exposed as a user-editable setting.
 
-Optional Home Assistant person linkage and SparkyFitness settings remain future
-profile extensions and are not exposed yet.
+The SparkyFitness base URL is configured once per physical scale. Each profile
+has its own enable switch and API key, so the key selects the matching Sparky
+account. Optional Home Assistant person linkage remains a future extension.
+
+## SparkyFitness synchronization
+
+Synchronization sends these seven values after Home Assistant has accepted and
+persisted a measurement:
+
+| GARLYN value | Sparky type | Storage | Unit |
+| --- | --- | --- | --- |
+| Weight | `weight` | Native | kg |
+| Body fat | `body_fat_percentage` | Native | % |
+| Body fat mass | `body_fat_mass_kg` | Custom category | kg |
+| Muscle | `muscle_percentage` | Custom category | % |
+| Muscle mass | `muscle_mass_kg` | Native | kg |
+| Body water | `body_water_percentage` | Native | % |
+| Body water mass | `body_water_mass_kg` | Custom category | kg |
+
+BMI, BMR, bone mass, profile data, and raw BIA values are not sent. Custom
+categories appear automatically after the first successful delivery and can be
+given friendly display names in Sparky without changing their technical names.
+
+Configure the scale-wide base URL under **Configure -> SparkyFitness settings**,
+then edit each profile that should synchronize and enter its own API key. The
+key is stored only in Home Assistant and is never sent to the ESP. HTTPS is
+recommended.
+
+Sparky delivery runs in the background and cannot delay the ESP webhook. Pending
+work survives Home Assistant restarts, retries with exponential backoff, and
+keeps only the newest measurement for a profile and local date. A Sparky outage
+therefore does not interrupt Home Assistant entities or history.
+
+See [SparkyFitness synchronization](docs/sparkyfitness.md) for setup, exact
+delivery semantics, response validation, privacy boundaries, and troubleshooting.
 
 ### Athlete Mode and native activity values
 
@@ -278,6 +313,3 @@ python -m pytest
 ## License
 
 This project is available under the [MIT License](LICENSE).
-
-The next transport milestone is non-blocking ESPHome HTTP delivery, followed by
-the optional SparkyFitness sender.

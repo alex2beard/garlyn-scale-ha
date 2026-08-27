@@ -18,7 +18,9 @@ from custom_components.garlyn_scale.algorithm import Sex
 from custom_components.garlyn_scale.const import (
     CONF_PROFILES,
     CONF_SCALE_ID,
+    CONF_SPARKY_URL,
     CONF_WEBHOOK_ID,
+    DOMAIN,
 )
 from custom_components.garlyn_scale.models import UserProfile, serialize_profiles
 
@@ -95,6 +97,8 @@ class FakeHass:
 
     def __init__(self, *, unload_result: bool = True) -> None:
         self.config_entries = FakeConfigEntries(unload_result=unload_result)
+        self.data: dict[str, object] = {}
+        self.config = SimpleNamespace(time_zone="UTC")
 
 
 def _install_home_assistant_stubs(
@@ -120,8 +124,11 @@ def _install_home_assistant_stubs(
     exceptions = ModuleType("homeassistant.exceptions")
     exceptions.ConfigEntryError = FakeConfigEntryError  # type: ignore[attr-defined]
     helpers = ModuleType("homeassistant.helpers")
+    aiohttp_client = ModuleType("homeassistant.helpers.aiohttp_client")
+    aiohttp_client.async_get_clientsession = lambda hass: object()  # type: ignore[attr-defined]
     storage = ModuleType("homeassistant.helpers.storage")
     storage.Store = FakeStore  # type: ignore[attr-defined]
+    helpers.aiohttp_client = aiohttp_client  # type: ignore[attr-defined]
 
     modules = {
         "homeassistant": homeassistant,
@@ -129,6 +136,7 @@ def _install_home_assistant_stubs(
         "homeassistant.components.webhook": webhook,
         "homeassistant.exceptions": exceptions,
         "homeassistant.helpers": helpers,
+        "homeassistant.helpers.aiohttp_client": aiohttp_client,
         "homeassistant.helpers.storage": storage,
     }
     for name, module in modules.items():
@@ -173,6 +181,7 @@ def test_setup_loads_profiles_and_registers_local_post_webhook(
     assert store_class.instances[0].kwargs == {
         "private": True,
         "atomic_writes": True,
+        "minor_version": 2,
     }
     assert len(registrations) == 1
     registration = registrations[0]
@@ -202,6 +211,63 @@ def test_setup_rejects_corrupt_profile_options(
     )
 
     with pytest.raises(FakeConfigEntryError, match="Stored GARLYN profiles"):
+        asyncio.run(async_setup_entry(FakeHass(), entry))
+
+
+def test_setup_wires_optional_sparky_manager_only_for_enabled_profiles(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_home_assistant_stubs(monkeypatch)
+    profile = UserProfile(
+        name="Synthetic profile",
+        profile_pin="4242",
+        sex=Sex.FEMALE,
+        date_of_birth=date(1991, 6, 15),
+        height_cm=175,
+        sparky_enabled=True,
+        sparky_api_key="secret-token",
+    )
+    entry = SimpleNamespace(
+        entry_id="entry-1",
+        data={CONF_SCALE_ID: "scale-1", CONF_WEBHOOK_ID: "webhook-1"},
+        options={
+            CONF_PROFILES: serialize_profiles({"4242": profile}),
+            CONF_SPARKY_URL: "https://sparky.example.com",
+        },
+        title="Bathroom scale",
+        runtime_data=None,
+        async_create_background_task=lambda *args, **kwargs: pytest.fail(
+            f"empty outbox unexpectedly created a task: {args}, {kwargs}"
+        ),
+    )
+    hass = FakeHass()
+
+    assert asyncio.run(async_setup_entry(hass, entry)) is True
+    assert entry.entry_id in hass.data[DOMAIN]
+
+
+def test_setup_rejects_enabled_sparky_profile_without_valid_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_home_assistant_stubs(monkeypatch)
+    profile = UserProfile(
+        name="Synthetic profile",
+        profile_pin="4242",
+        sex=Sex.FEMALE,
+        date_of_birth=date(1991, 6, 15),
+        height_cm=175,
+        sparky_enabled=True,
+        sparky_api_key="secret-token",
+    )
+    entry = SimpleNamespace(
+        entry_id="entry-1",
+        data={CONF_SCALE_ID: "scale-1", CONF_WEBHOOK_ID: "webhook-1"},
+        options={CONF_PROFILES: serialize_profiles({"4242": profile})},
+        title="Bathroom scale",
+        runtime_data=None,
+    )
+
+    with pytest.raises(FakeConfigEntryError, match="Sparky URL is required"):
         asyncio.run(async_setup_entry(FakeHass(), entry))
 
 
@@ -283,6 +349,7 @@ def test_unload_entry_respects_platform_result_before_removing_webhook(
     _, unregistrations, _ = _install_home_assistant_stubs(monkeypatch)
     hass = FakeHass(unload_result=unload_result)
     entry = SimpleNamespace(
+        entry_id="entry-1",
         data={CONF_WEBHOOK_ID: "webhook-1"},
         runtime_data=None,
     )

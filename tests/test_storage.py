@@ -7,6 +7,7 @@ import pytest
 from custom_components.garlyn_scale.algorithm import Sex
 from custom_components.garlyn_scale.models import UserProfile
 from custom_components.garlyn_scale.runtime import AcceptanceStatus, ScaleRuntime
+from custom_components.garlyn_scale.sparky import SparkyOutbox, SparkyQueueItem
 from custom_components.garlyn_scale.storage import (
     restore_runtime_state,
     serialize_runtime_state,
@@ -72,6 +73,40 @@ def test_runtime_state_round_trip_survives_restart() -> None:
     assert restored.latest_by_profile["4242"].user_profile == _profile()
     assert restored.process(measurement) is AcceptanceStatus.DUPLICATE
     assert serialize_runtime_state(restored) == stored
+
+
+def test_runtime_and_sparky_outbox_round_trip_in_one_snapshot() -> None:
+    original = _runtime()
+    original.process(_measurement("measurement-1"))
+    assert original.last_processed_measurement is not None
+    outbox = SparkyOutbox()
+    outbox.enqueue(
+        SparkyQueueItem.from_processed(
+            original.last_processed_measurement,
+            timezone_name="Europe/Amsterdam",
+        )
+    )
+
+    stored = serialize_runtime_state(original, outbox)
+    assert isinstance(stored["sparky_outbox"], dict)
+    assert "sparky_api_key" not in str(stored)
+
+    restored_runtime = _runtime()
+    restored_outbox = restore_runtime_state(restored_runtime, stored)
+    assert restored_outbox.as_dict() == outbox.as_dict()
+    assert restored_runtime.seen_measurement_ids == ("measurement-1",)
+
+
+def test_legacy_runtime_snapshot_without_outbox_restores_an_empty_queue() -> None:
+    original = _runtime()
+    original.process(_measurement("measurement-1"))
+    stored = serialize_runtime_state(original)
+    del stored["sparky_outbox"]
+
+    restored = _runtime()
+    outbox = restore_runtime_state(restored, stored)
+
+    assert outbox.pending_count == 0
 
 
 def test_legacy_runtime_snapshot_without_profile_id_still_restores() -> None:

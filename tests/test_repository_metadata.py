@@ -21,7 +21,7 @@ def test_manifest_declares_custom_integration_requirements() -> None:
     assert manifest["issue_tracker"] == (
         "https://github.com/alex2beard/garlyn-scale-ha/issues"
     )
-    assert manifest["version"] == "0.5.0"
+    assert manifest["version"] == "0.6.0"
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert project["project"]["version"] == manifest["version"]
@@ -52,11 +52,19 @@ def test_hacs_metadata_and_brand_assets_are_present() -> None:
         assert struct.unpack(">II", data[16:24]) == dimensions
 
 
-def test_public_fixture_is_explicitly_synthetic() -> None:
-    fixture = json.loads(
-        (ROOT / "tests/fixtures/synthetic_reference.json").read_text(
+def test_release_notes_exist() -> None:
+    manifest = json.loads(
+        (ROOT / "custom_components/garlyn_scale/manifest.json").read_text(
             encoding="utf-8"
         )
+    )
+    release_notes = ROOT / ".github/release-notes" / (f"v{manifest['version']}.md")
+    assert release_notes.is_file()
+
+
+def test_public_fixture_is_explicitly_synthetic() -> None:
+    fixture = json.loads(
+        (ROOT / "tests/fixtures/synthetic_reference.json").read_text(encoding="utf-8")
     )
     assert fixture["data_origin"] == "synthetic"
     assert "not a device capture" in fixture["description"]

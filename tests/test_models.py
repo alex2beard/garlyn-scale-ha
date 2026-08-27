@@ -5,7 +5,12 @@ from datetime import date, datetime
 import pytest
 
 from custom_components.garlyn_scale.algorithm import ActivityLevel, Sex
-from custom_components.garlyn_scale.const import CONF_PROFILE_ID, CONF_PROFILES
+from custom_components.garlyn_scale.const import (
+    CONF_PROFILE_ID,
+    CONF_PROFILES,
+    CONF_SPARKY_API_KEY,
+    CONF_SPARKY_ENABLED,
+)
 from custom_components.garlyn_scale.models import (
     UserProfile,
     age_on,
@@ -67,9 +72,65 @@ def test_profile_options_round_trip_is_json_safe_and_preserves_pin() -> None:
             "height_cm": 165.5,
             "athlete_mode": True,
             "reference_standard": "external",
+            CONF_SPARKY_ENABLED: False,
+            CONF_SPARKY_API_KEY: None,
         }
     }
     assert deserialize_profiles({CONF_PROFILES: stored}) == {"0012": profile}
+
+
+def test_sparky_secret_round_trip_is_excluded_from_repr_and_runtime_snapshot() -> None:
+    profile = UserProfile(
+        name="Test user",
+        profile_pin="0012",
+        sex=Sex.FEMALE,
+        date_of_birth=date(1990, 1, 2),
+        height_cm=165.5,
+        sparky_enabled=True,
+        sparky_api_key="secret-token",
+    )
+
+    stored = serialize_profiles({"0012": profile})
+    assert stored["0012"][CONF_SPARKY_ENABLED] is True
+    assert stored["0012"][CONF_SPARKY_API_KEY] == "secret-token"
+    assert deserialize_profiles({CONF_PROFILES: stored})["0012"] == profile
+    assert "secret-token" not in repr(profile)
+
+    runtime_snapshot = serialize_profiles({"0012": profile}, include_sparky=False)
+    assert CONF_SPARKY_ENABLED not in runtime_snapshot["0012"]
+    assert CONF_SPARKY_API_KEY not in runtime_snapshot["0012"]
+
+
+def test_enabling_sparky_requires_a_valid_secret() -> None:
+    with pytest.raises(ValueError, match="required"):
+        UserProfile(
+            name="Test user",
+            profile_pin="0012",
+            sex=Sex.FEMALE,
+            date_of_birth=date(1990, 1, 2),
+            height_cm=165.5,
+            sparky_enabled=True,
+        )
+
+    with pytest.raises(ValueError, match="ASCII token"):
+        UserProfile(
+            name="Test user",
+            profile_pin="0012",
+            sex=Sex.FEMALE,
+            date_of_birth=date(1990, 1, 2),
+            height_cm=165.5,
+            sparky_api_key=" secret-token ",
+        )
+
+    with pytest.raises(ValueError, match="ASCII token"):
+        UserProfile(
+            name="Test user",
+            profile_pin="0012",
+            sex=Sex.FEMALE,
+            date_of_birth=date(1990, 1, 2),
+            height_cm=165.5,
+            sparky_api_key="secret\ntoken",
+        )
 
 
 def test_legacy_profile_gets_a_deterministic_stable_id() -> None:

@@ -23,7 +23,10 @@
   "options": {
     "error": {
       "invalid_profile": "Check all profile fields. Date of birth must give a current age from 1 through 120 years.",
-      "pin_already_configured": "This four-digit PIN is already assigned to another profile."
+      "pin_already_configured": "This four-digit PIN is already assigned to another profile.",
+      "invalid_sparky_url": "Enter a valid SparkyFitness HTTP or HTTPS base URL without credentials, query parameters, or a fragment.",
+      "sparky_url_required": "Configure the SparkyFitness URL before enabling synchronization for a profile.",
+      "sparky_api_key_required": "Enter the SparkyFitness API key for this profile."
     },
     "step": {
       "init": {
@@ -31,6 +34,7 @@
         "description": "Configured profiles: {profile_count}",
         "menu_options": {
           "connection_info": "Connection information",
+          "sparky_settings": "SparkyFitness settings",
           "add_profile": "Add profile",
           "edit_profile": "Edit profile",
           "delete_profile": "Delete profile"
@@ -43,6 +47,16 @@
           "init": "Back to settings"
         }
       },
+      "sparky_settings": {
+        "title": "SparkyFitness settings",
+        "description": "Optional base URL shared by the profiles of this scale. API keys remain separate for each profile. Leave empty only when synchronization is disabled for every profile.",
+        "data": {
+          "sparky_url": "SparkyFitness base URL"
+        },
+        "data_description": {
+          "sparky_url": "Example: https://sparky.example.com. Do not include /api/health-data. HTTPS is recommended because API keys are sent to this server."
+        }
+      },
       "add_profile": {
         "title": "Add profile",
         "description": "The scale sends the four-digit PIN with every completed measurement. Each PIN can belong to only one profile.",
@@ -53,13 +67,17 @@
           "date_of_birth": "Date of birth",
           "height_cm": "Height",
           "athlete_mode": "Athlete Mode",
-          "reference_standard": "Reference standard"
+          "reference_standard": "Reference standard",
+          "sparky_enabled": "Synchronize with SparkyFitness",
+          "sparky_api_key": "SparkyFitness API key"
         },
         "data_description": {
           "profile_pin": "Exactly four digits. Leading zeroes are preserved.",
           "date_of_birth": "Age is calculated separately for the date of each measurement.",
           "athlete_mode": "Off maps to native activity value 0; on maps to value 5.",
-          "reference_standard": "External/international is the normal default outside China."
+          "reference_standard": "External/international is the normal default outside China.",
+          "sparky_enabled": "Queues the newest accepted measurement for each profile and local date for restart-safe background delivery.",
+          "sparky_api_key": "Token only, without the Bearer prefix. The key must have the health_data_write permission."
         }
       },
       "edit_profile": {
@@ -78,13 +96,17 @@
           "date_of_birth": "Date of birth",
           "height_cm": "Height",
           "athlete_mode": "Athlete Mode",
-          "reference_standard": "Reference standard"
+          "reference_standard": "Reference standard",
+          "sparky_enabled": "Synchronize with SparkyFitness",
+          "sparky_api_key": "SparkyFitness API key"
         },
         "data_description": {
           "profile_pin": "Exactly four digits. Leading zeroes are preserved.",
           "date_of_birth": "Age is calculated separately for the date of each measurement.",
           "athlete_mode": "Off maps to native activity value 0; on maps to value 5.",
-          "reference_standard": "External/international is the normal default outside China."
+          "reference_standard": "External/international is the normal default outside China.",
+          "sparky_enabled": "Queues the newest accepted measurement for each profile and local date for restart-safe background delivery.",
+          "sparky_api_key": "Token only, without the Bearer prefix. The key must have the health_data_write permission."
         }
       },
       "delete_profile": {

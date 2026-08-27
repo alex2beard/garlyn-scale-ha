@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from http import HTTPStatus
@@ -12,16 +13,22 @@ from .const import MAX_WEBHOOK_PAYLOAD_BYTES
 from .runtime import (
     AcceptanceStatus,
     InvalidProfileForMeasurementError,
+    ProcessedMeasurement,
     ScaleRuntime,
     UnknownProfileError,
 )
 from .transport import TransportValidationError, parse_measurement
+
+type RollbackCallback = Callable[[], None]
+type PrepareStateCallback = Callable[[ProcessedMeasurement], RollbackCallback | None]
 
 
 async def async_handle_measurement(
     runtime: ScaleRuntime,
     request: web.Request,
     async_save_state: Callable[[ScaleRuntime], Awaitable[None]] | None = None,
+    prepare_state: PrepareStateCallback | None = None,
+    state_lock: asyncio.Lock | None = None,
 ) -> web.Response:
     """Validate and accept one ESP transport request."""
     if (
@@ -49,33 +56,47 @@ async def async_handle_measurement(
             status=HTTPStatus.UNPROCESSABLE_ENTITY,
         )
 
-    try:
-        status = runtime.process(measurement)
-    except UnknownProfileError as err:
-        return web.json_response(
-            {
-                "status": "error",
-                "error": "unknown_profile",
-                "profile_pin": err.profile_pin,
-            },
-            status=HTTPStatus.CONFLICT,
-        )
-    except InvalidProfileForMeasurementError as err:
-        return web.json_response(
-            {
-                "status": "error",
-                "error": "profile_invalid_for_measurement",
-                "profile_pin": err.profile_pin,
-            },
-            status=HTTPStatus.CONFLICT,
-        )
+    lock = state_lock or asyncio.Lock()
+    async with lock:
+        checkpoint = runtime.checkpoint()
+        try:
+            status = runtime.process(measurement)
+        except UnknownProfileError as err:
+            return web.json_response(
+                {
+                    "status": "error",
+                    "error": "unknown_profile",
+                    "profile_pin": err.profile_pin,
+                },
+                status=HTTPStatus.CONFLICT,
+            )
+        except InvalidProfileForMeasurementError as err:
+            return web.json_response(
+                {
+                    "status": "error",
+                    "error": "profile_invalid_for_measurement",
+                    "profile_pin": err.profile_pin,
+                },
+                status=HTTPStatus.CONFLICT,
+            )
 
-    # Save accepted state before acknowledging it. Duplicate deliveries are
-    # saved too: this persists their LRU touch and lets a retry repair state if
-    # an earlier save raised before its HTTP response was sent.
-    if async_save_state is not None:
-        await async_save_state(runtime)
-    runtime.publish_last_processed()
+        rollback_prepared_state: RollbackCallback | None = None
+        try:
+            if status is AcceptanceStatus.ACCEPTED and prepare_state is not None:
+                processed = runtime.last_processed_measurement
+                assert processed is not None
+                rollback_prepared_state = prepare_state(processed)
+
+            # Save accepted HA state and its optional downstream outbox together
+            # before acknowledging the ESP. Sparky network I/O happens later.
+            if async_save_state is not None:
+                await async_save_state(runtime)
+        except BaseException:
+            if rollback_prepared_state is not None:
+                rollback_prepared_state()
+            runtime.restore_checkpoint(checkpoint)
+            raise
+        runtime.publish_last_processed()
 
     response_status = (
         HTTPStatus.OK if status is AcceptanceStatus.DUPLICATE else HTTPStatus.ACCEPTED
