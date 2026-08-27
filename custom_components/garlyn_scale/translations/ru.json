@@ -54,7 +54,7 @@
           "sparky_url": "Базовый адрес SparkyFitness"
         },
         "data_description": {
-          "sparky_url": "Пример: https://sparky.example.com. Не добавляйте /api/health-data. Рекомендуется HTTPS, поскольку на этот сервер передаются API-ключи."
+          "sparky_url": "Введите базовый адрес SparkyFitness без /api/health-data. Рекомендуется HTTPS, поскольку на этот сервер передаются API-ключи."
         }
       },
       "add_profile": {

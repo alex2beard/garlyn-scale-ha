@@ -54,7 +54,7 @@
           "sparky_url": "SparkyFitness base URL"
         },
         "data_description": {
-          "sparky_url": "Example: https://sparky.example.com. Do not include /api/health-data. HTTPS is recommended because API keys are sent to this server."
+          "sparky_url": "Enter the SparkyFitness base address without /api/health-data. HTTPS is recommended because API keys are sent to this server."
         }
       },
       "add_profile": {
