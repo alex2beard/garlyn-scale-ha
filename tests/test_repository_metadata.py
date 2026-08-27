@@ -21,7 +21,7 @@ def test_manifest_declares_custom_integration_requirements() -> None:
     assert manifest["issue_tracker"] == (
         "https://github.com/alex2beard/garlyn-scale-ha/issues"
     )
-    assert manifest["version"] == "0.6.1"
+    assert manifest["version"] == "0.6.2"
 
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     assert project["project"]["version"] == manifest["version"]

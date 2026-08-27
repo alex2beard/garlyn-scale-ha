@@ -144,9 +144,15 @@ def test_payload_contains_exactly_the_seven_agreed_values() -> None:
     assert all(record["date"] == "2026-01-16" for record in payload)
     assert all(record["timestamp"] == "2026-01-15T23:30:00Z" for record in payload)
     assert all(record["record_timezone"] == "Europe/Amsterdam" for record in payload)
-    assert all(
-        record["source"] == "GARLYN Scale via Home Assistant" for record in payload
-    )
+    assert [record["source"] for record in payload] == [
+        "GARLYN Scale via Home Assistant",
+        "GARLYN Scale via Home Assistant",
+        "manual",
+        "manual",
+        "GARLYN Scale via Home Assistant",
+        "GARLYN Scale via Home Assistant",
+        "manual",
+    ]
     serialized = str(payload)
     assert "secret-token" not in serialized
     assert "4242" not in serialized

@@ -48,8 +48,13 @@ Every record has the same:
 - `date`, derived from the physical measurement instant in the Home Assistant
   time zone;
 - UTC `timestamp` of the physical measurement;
-- `record_timezone`, containing the Home Assistant IANA time-zone name;
-- `source`, set to `GARLYN Scale via Home Assistant`.
+- `record_timezone`, containing the Home Assistant IANA time-zone name.
+
+The four native records use `source: GARLYN Scale via Home Assistant`. The three
+custom-category records use `source: manual` because Sparky Mobile currently
+prefills only manual custom measurements in its editable daily form. This is a
+display-compatibility convention; the values are still generated and delivered
+automatically by this integration.
 
 Example with deliberately synthetic values:
 
@@ -72,6 +77,15 @@ Example with deliberately synthetic values:
     "timestamp": "2026-01-15T23:30:00Z",
     "record_timezone": "Europe/Amsterdam",
     "source": "GARLYN Scale via Home Assistant"
+  },
+  {
+    "type": "body_fat_mass_kg",
+    "value": 24.5,
+    "unit": "kg",
+    "date": "2026-01-16",
+    "timestamp": "2026-01-15T23:30:00Z",
+    "record_timezone": "Europe/Amsterdam",
+    "source": "manual"
   }
 ]
 ```

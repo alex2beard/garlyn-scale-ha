@@ -48,6 +48,13 @@ _VALUE_UNITS = {
     "body_water_percentage": "%",
     "body_water_mass_kg": "kg",
 }
+_CUSTOM_MANUAL_SOURCE_TYPES = frozenset(
+    {
+        "body_fat_mass_kg",
+        "muscle_percentage",
+        "body_water_mass_kg",
+    }
+)
 _QUEUE_ITEM_KEYS = frozenset(
     {
         "measurement_id",
@@ -258,13 +265,17 @@ class SparkyQueueItem:
             "date": self.entry_date,
             "timestamp": self.measured_at,
             "record_timezone": self.record_timezone,
-            "source": SPARKY_SOURCE,
         }
         return [
             {
                 "type": field_name,
                 "value": value,
                 "unit": _VALUE_UNITS[field_name],
+                "source": (
+                    "manual"
+                    if field_name in _CUSTOM_MANUAL_SOURCE_TYPES
+                    else SPARKY_SOURCE
+                ),
                 **common,
             }
             for field_name, value in self.values.as_dict().items()

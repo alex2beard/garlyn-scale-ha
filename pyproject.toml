@@ -1,6 +1,6 @@
 [project]
 name = "garlyn-scale-ha"
-version = "0.6.1"
+version = "0.6.2"
 description = "Unofficial GARLYN Bodyscan Master integration for Home Assistant"
 requires-python = ">=3.12"
 
