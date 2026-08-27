@@ -269,7 +269,7 @@ class SparkyQueueItem:
         return [
             {
                 "type": field_name,
-                "value": value,
+                "value": round(value, 2),
                 "unit": _VALUE_UNITS[field_name],
                 "source": (
                     "manual"

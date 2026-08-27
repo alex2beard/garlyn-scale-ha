@@ -169,7 +169,9 @@ categories appear automatically after the first successful delivery and can be
 given friendly display names in Sparky without changing their technical names.
 The three custom records use Sparky's `manual` source so their synchronized
 values are visible in the current Sparky Mobile daily form; the four native
-records retain the descriptive `GARLYN Scale via Home Assistant` source.
+records retain the descriptive `GARLYN Scale via Home Assistant` source. All
+seven numbers are rounded to at most two decimal places only when the Sparky
+request is built; Home Assistant keeps the original calculation precision.
 
 Configure the scale-wide base URL under **Configure -> SparkyFitness settings**,
 then edit each profile that should synchronize and enter its own API key. The

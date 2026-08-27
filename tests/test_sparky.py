@@ -113,7 +113,7 @@ def test_sparky_url_normalizes_whitespace_scheme_and_trailing_slash() -> None:
     )
 
 
-def test_payload_contains_exactly_the_seven_agreed_values() -> None:
+def test_payload_rounds_exactly_the_seven_agreed_values_for_sparky() -> None:
     item = _item(timezone_name="Europe/Amsterdam")
 
     payload = item.payload()
@@ -130,17 +130,17 @@ def test_payload_contains_exactly_the_seven_agreed_values() -> None:
         "%",
         "kg",
     ]
-    assert [record["value"] for record in payload] == pytest.approx(
-        [
-            74.8,
-            32.80478286743164,
-            24.537979125976562,
-            62.367652893066406,
-            46.65100860595703,
-            49.12552261352539,
-            36.74589157104492,
-        ]
-    )
+    assert [record["value"] for record in payload] == [
+        74.8,
+        32.8,
+        24.54,
+        62.37,
+        46.65,
+        49.13,
+        36.75,
+    ]
+    assert item.values.body_fat_mass_kg == pytest.approx(24.537979125976562)
+    assert item.as_dict()["values"] == item.values.as_dict()
     assert all(record["date"] == "2026-01-16" for record in payload)
     assert all(record["timestamp"] == "2026-01-15T23:30:00Z" for record in payload)
     assert all(record["record_timezone"] == "Europe/Amsterdam" for record in payload)

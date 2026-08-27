@@ -56,6 +56,11 @@ prefills only manual custom measurements in its editable daily form. This is a
 display-compatibility convention; the values are still generated and delivered
 automatically by this integration.
 
+All seven outgoing numeric values are rounded to at most two decimal places
+when the API request is built. This prevents internal binary floating-point
+digits from appearing in Sparky custom fields. The calculation results and the
+values persisted in Home Assistant remain at their original precision.
+
 Example with deliberately synthetic values:
 
 ```json
